@@ -1,0 +1,574 @@
+# Vibration-timer
+Testing vibration timer
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vibrate‑Only Multi Timer & Alarm</title>
+  <style>
+    :root {
+      --bg: #0f1221;
+      --card: #171a2b;
+      --muted: #aab2d5;
+      --text: #e9ecff;
+      --accent: #7aa2ff;
+      --accent-2: #9bffdc;
+      --danger: #ff7171;
+      --ok: #9aff9a;
+      --warn: #ffd37a;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius: 16px;
+    }
+    html, body {
+      height: 100%;
+      background: radial-gradient(1200px 800px at 80% -10%, #1b1f35 0%, #0f1221 40%, #0c0f1d 100%);
+      color: var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, Noto Sans, "Apple Color Emoji", "Segoe UI Emoji";
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      margin: 0;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+    h1 {
+      font-size: clamp(22px, 2vw + 16px, 34px);
+      margin: 0;
+      letter-spacing: 0.3px;
+    }
+    .sub {
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.15)), var(--card);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .panel {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      padding: 18px;
+    }
+    @media (min-width: 880px) {
+      .panel {
+        grid-template-columns: 1.2fr 1fr;
+      }
+    }
+    .section-title {
+      font-size: 14px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 0 0 8px;
+    }
+    .tabs {
+      display: inline-flex;
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255,255,255,.03);
+    }
+    .tab-btn {
+      cursor: pointer;
+      padding: 10px 14px;
+      font-size: 14px;
+      border: none;
+      color: var(--muted);
+      background: transparent;
+      transition: all .16s ease;
+    }
+    .tab-btn.active {
+      color: var(--text);
+      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
+    }
+    form .row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    @media (min-width: 720px) {
+      form .row.split-3 {
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+      form .row.split-2 {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    input[type="text"], input[type="number"], input[type="time"], input[type="date"], select {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      outline: none;
+      font-size: 16px;
+      transition: border .16s ease, background .16s ease;
+    }
+    input::placeholder { color: #c9cde4; opacity: .7; }
+    input:focus, select:focus { border-color: var(--accent); background: rgba(255,255,255,.08); }
+    .help { color: var(--muted); font-size: 12px; margin-top: 8px; }
+    .btn {
+      cursor: pointer;
+      user-select: none;
+      border: 1px solid rgba(255,255,255,.1);
+      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-weight: 600;
+      letter-spacing: .2px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: transform .08s ease, filter .2s ease;
+    }
+    .btn:hover { filter: brightness(1.1); }
+    .btn:active { transform: translateY(1px); }
+    .btn.primary { border-color: rgba(122,162,255,.6); box-shadow: 0 0 0 2px rgba(122,162,255,.15) inset; }
+    .btn.danger { border-color: rgba(255,113,113,.5); box-shadow: 0 0 0 2px rgba(255,113,113,.15) inset; }
+    .btn.ghost { background: rgba(255,255,255,.04); }
+
+    .actions { display:flex; align-items:center; gap:10px; flex-wrap: wrap; }
+
+    .list {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    @media (min-width: 680px) {
+      .list { grid-template-columns: 1fr 1fr; }
+    }
+    @media (min-width: 1100px) {
+      .list { grid-template-columns: 1fr 1fr 1fr; }
+    }
+    .item {
+      padding: 14px;
+      display: grid;
+      grid-template-rows: auto auto auto;
+      gap: 12px;
+    }
+    .item-header {
+      display: flex; align-items: start; gap: 10px; justify-content: space-between; min-width:0;
+    }
+    .name {
+      font-size: 16px; font-weight: 700; line-height: 1.3; word-break: break-word; overflow-wrap: anywhere; max-height: 4.2em; overflow: auto; padding-right: 6px;
+    }
+    .pill {
+      font-size: 12px; padding: 4px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); color: var(--muted);
+      background: rgba(255,255,255,.05);
+    }
+    .time {
+      font-variant-numeric: tabular-nums;
+      font-size: 28px;
+      letter-spacing: 1px;
+    }
+    .status {
+      font-size: 12px; color: var(--muted);
+    }
+    .item-actions { display:flex; align-items:center; gap: 8px; flex-wrap: wrap; }
+
+    .toolbar {
+      margin-top: 14px;
+      display:flex; align-items:center; gap: 10px; flex-wrap: wrap;
+    }
+    .notice { font-size: 12px; color: var(--muted); }
+    .hint { color: var(--warn); }
+    .ok { color: var(--ok); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Vibrate‑Only Multi Timer & Alarm</h1>
+        <div class="sub">Create multiple countdowns or alarms that alert by phone vibration only (no sound). Saved locally in your browser.</div>
+      </div>
+      <div class="actions">
+        <button id="testVibrate" class="btn">Test vibration</button>
+        <button id="stopAll" class="btn danger">Stop all vibrations</button>
+      </div>
+    </header>
+
+    <section class="card panel">
+      <div>
+        <div class="section-title">Create</div>
+        <div class="tabs" role="tablist" aria-label="Create type">
+          <button class="tab-btn active" id="tabTimer" role="tab" aria-selected="true">Timer</button>
+          <button class="tab-btn" id="tabAlarm" role="tab" aria-selected="false">Alarm</button>
+        </div>
+
+        <!-- TIMER FORM -->
+        <form id="formTimer" autocomplete="off" style="margin-top:14px;">
+          <div class="row">
+            <div>
+              <label for="tName">Name</label>
+              <input id="tName" type="text" placeholder="e.g., Steep green tea 2nd round — long custom title supported" required />
+              <div class="help">Long names are supported and will wrap.</div>
+            </div>
+          </div>
+          <div class="row split-3" style="margin-top:8px;">
+            <div>
+              <label for="tHours">Hours</label>
+              <input id="tHours" type="number" inputmode="numeric" min="0" max="999" value="0" />
+            </div>
+            <div>
+              <label for="tMinutes">Minutes</label>
+              <input id="tMinutes" type="number" inputmode="numeric" min="0" max="59" value="1" />
+            </div>
+            <div>
+              <label for="tSeconds">Seconds</label>
+              <input id="tSeconds" type="number" inputmode="numeric" min="0" max="59" value="0" />
+            </div>
+          </div>
+          <div class="row split-2" style="margin-top:8px;">
+            <div>
+              <label for="tMode">Alert</label>
+              <select id="tMode">
+                <option value="vibrate" selected>Vibrate (no sound)</option>
+                <option value="silent">Visual only</option>
+              </select>
+            </div>
+            <div>
+              <label for="tContinuous">Vibration style</label>
+              <select id="tContinuous">
+                <option value="continuous" selected>Continuous until stopped</option>
+                <option value="pulse-10">Pulse for 10 seconds</option>
+                <option value="pulse-30">Pulse for 30 seconds</option>
+              </select>
+            </div>
+          </div>
+          <div class="actions" style="margin-top:12px;">
+            <button class="btn primary" type="submit">Add timer</button>
+            <button class="btn ghost" type="reset">Reset</button>
+          </div>
+        </form>
+
+        <!-- ALARM FORM -->
+        <form id="formAlarm" autocomplete="off" style="margin-top:14px; display:none;">
+          <div class="row">
+            <div>
+              <label for="aName">Name</label>
+              <input id="aName" type="text" placeholder="e.g., Start meeting — long titles are OK" required />
+            </div>
+          </div>
+          <div class="row split-2" style="margin-top:8px;">
+            <div>
+              <label for="aDate">Date</label>
+              <input id="aDate" type="date" />
+            </div>
+            <div>
+              <label for="aTime">Time</label>
+              <input id="aTime" type="time" />
+            </div>
+          </div>
+          <div class="row split-2" style="margin-top:8px;">
+            <div>
+              <label for="aMode">Alert</label>
+              <select id="aMode">
+                <option value="vibrate" selected>Vibrate (no sound)</option>
+                <option value="silent">Visual only</option>
+              </select>
+            </div>
+            <div>
+              <label for="aContinuous">Vibration style</label>
+              <select id="aContinuous">
+                <option value="continuous" selected>Continuous until stopped</option>
+                <option value="pulse-10">Pulse for 10 seconds</option>
+                <option value="pulse-30">Pulse for 30 seconds</option>
+              </select>
+            </div>
+          </div>
+          <div class="actions" style="margin-top:12px;">
+            <button class="btn primary" type="submit">Add alarm</button>
+            <button class="btn ghost" type="reset">Reset</button>
+          </div>
+          <div class="help" id="tzInfo"></div>
+        </form>
+      </div>
+
+      <div>
+        <div class="section-title">Options</div>
+        <div class="card" style="padding:12px;">
+          <div class="actions">
+            <label style="display:flex; align-items:center; gap:8px;">
+              <input id="wakeLockToggle" type="checkbox" /> Keep screen awake while running
+            </label>
+            <label style="display:flex; align-items:center; gap:8px;">
+              <input id="tickSoundToggle" type="checkbox" disabled /> Play sound (disabled — vibrate only)
+            </label>
+          </div>
+          <div class="help" style="margin-top:10px;">
+            <span class="hint">Note:</span> Vibration works best on Android Chrome. Some browsers/devices (like iOS Safari) may limit or ignore vibration. This app never plays audio.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="toolbar">
+      <div class="section-title" style="margin:0;">Saved Timers & Alarms</div>
+      <div class="actions">
+        <button id="exportBtn" class="btn">Export</button>
+        <button id="importBtn" class="btn">Import</button>
+        <input id="importFile" type="file" accept="application/json" style="display:none;" />
+        <button id="clearAll" class="btn danger">Delete all</button>
+      </div>
+    </section>
+
+    <section id="list" class="list"></section>
+
+    <p class="notice">Created items are saved locally (no server). Timers continue counting down as long as this tab is active. If a running item finishes while the page is closed, the next time you open it the alert will trigger immediately.</p>
+  </div>
+
+  <template id="itemTemplate">
+    <div class="card item" data-id="">
+      <div class="item-header">
+        <div style="min-width:0;">
+          <div class="name"></div>
+          <div class="status"></div>
+        </div>
+        <div class="pill type"></div>
+      </div>
+      <div class="time">00:00:00</div>
+      <div class="item-actions">
+        <button class="btn primary start">Start</button>
+        <button class="btn pause" style="display:none;">Pause</button>
+        <button class="btn resume" style="display:none;">Resume</button>
+        <button class="btn ghost reset">Reset</button>
+        <button class="btn danger stopVibe" style="display:none;">Stop vibration</button>
+        <button class="btn ghost edit">Edit</button>
+        <button class="btn danger delete">Delete</button>
+      </div>
+    </div>
+  </template>
+
+  <script>
+  (() => {
+    const $ = (sel, el=document) => el.querySelector(sel);
+    const $$ = (sel, el=document) => Array.from(el.querySelectorAll(sel));
+
+    const storageKey = 'vibrateTimers.v1';
+    const state = {
+      items: [], // array of timer/alarm
+      intervals: new Map(), // id -> interval handle (ticker)
+      vibes: new Map(), // id -> interval handle (continuous vibration)
+      wakeLock: null,
+    };
+
+    const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+    const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+
+    function fmt(ms) {
+      ms = Math.max(0, Math.floor(ms));
+      const s = Math.floor(ms / 1000);
+      const hh = Math.floor(s / 3600).toString().padStart(2,'0');
+      const mm = Math.floor((s % 3600) / 60).toString().padStart(2,'0');
+      const ss = (s % 60).toString().padStart(2,'0');
+      return `${hh}:${mm}:${ss}`;
+    }
+
+    function save() {
+      localStorage.setItem(storageKey, JSON.stringify(state.items));
+    }
+
+    function load() {
+      try {
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) return [];
+        const arr = JSON.parse(raw);
+        if (!Array.isArray(arr)) return [];
+        return arr;
+      } catch { return [] }
+    }
+
+    function now() { return Date.now(); }
+
+    function scheduleTick(item) {
+      clearTick(item.id);
+      const h = setInterval(() => tick(item.id), 250);
+      state.intervals.set(item.id, h);
+    }
+
+    function clearTick(id) {
+      const h = state.intervals.get(id);
+      if (h) { clearInterval(h); state.intervals.delete(id); }
+    }
+
+    function startVibration(id, style) {
+      stopVibration(id);
+      if (!('vibrate' in navigator)) {
+        toast('Vibration API not supported on this device/browser.');
+        return;
+      }
+      if (style === 'continuous') {
+        // Repeat a short vibrate pattern frequently to simulate nonstop
+        const h = setInterval(() => {
+          navigator.vibrate([300, 80, 300, 80]);
+        }, 900);
+        state.vibes.set(id, h);
+      } else if (style.startsWith('pulse-')) {
+        const secs = Number(style.split('-')[1]);
+        const endAt = now() + secs * 1000;
+        const h = setInterval(() => {
+          if (now() >= endAt) {
+            stopVibration(id);
+          } else {
+            navigator.vibrate([200, 120, 200, 120]);
+          }
+        }, 700);
+        state.vibes.set(id, h);
+      }
+    }
+
+    function stopVibration(id) {
+      const h = state.vibes.get(id);
+      if (h) { clearInterval(h); state.vibes.delete(id); }
+      if ('vibrate' in navigator) navigator.vibrate(0);
+    }
+
+    function stopAllVibrations() {
+      [...state.vibes.keys()].forEach(stopVibration);
+      if ('vibrate' in navigator) navigator.vibrate(0);
+      // Also show buttons back to normal for any vibrating items
+      state.items.forEach(it => {
+        if (it.status === 'vibrating') {
+          it.status = 'done';
+        }
+      });
+      render();
+      save();
+    }
+
+    function getRemaining(item) {
+      if (item.type === 'timer') {
+        if (item.status === 'paused') return item.remainingMs;
+        const end = item.startTs + item.durationMs;
+        return end - now();
+      } else { // alarm
+        if (item.status === 'paused') return item.remainingMs;
+        return item.targetTs - now();
+      }
+    }
+
+    function tick(id) {
+      const item = state.items.find(x => x.id === id);
+      if (!item) { clearTick(id); return; }
+      const remain = getRemaining(item);
+      if (remain <= 0) {
+        clearTick(id);
+        item.status = (item.mode === 'vibrate') ? 'vibrating' : 'done';
+        if (item.mode === 'vibrate') startVibration(item.id, item.vibeStyle);
+        render();
+        save();
+        return;
+      }
+      const el = document.querySelector(`.item[data-id="${id}"] .time`);
+      if (el) el.textContent = fmt(remain);
+      const st = document.querySelector(`.item[data-id="${id}"] .status`);
+      if (st && item.type === 'alarm') {
+        const dt = new Date(item.targetTs);
+        st.textContent = `Fires at ${dt.toLocaleString()} (in ${fmt(remain)})`;
+      }
+    }
+
+    function addTimer(name, hours, minutes, seconds, mode, vibeStyle) {
+      const durationMs = (Number(hours)*3600 + Number(minutes)*60 + Number(seconds)) * 1000;
+      if (!durationMs || durationMs < 1000) return toast('Duration must be at least 1 second.');
+      const it = {
+        id: uid(),
+        type: 'timer',
+        name: name.trim() || 'Untitled timer',
+        mode, // vibrate | silent
+        vibeStyle, // continuous | pulse-10 | pulse-30
+        durationMs,
+        startTs: now(),
+        status: 'running', // running | paused | done | vibrating
+        remainingMs: durationMs,
+        createdAt: now(),
+      };
+      state.items.unshift(it);
+      scheduleTick(it);
+      render();
+      save();
+    }
+
+    function addAlarm(name, dateStr, timeStr, mode, vibeStyle) {
+      // Construct target timestamp from local date+time
+      if (!dateStr || !timeStr) return toast('Please pick both date and time.');
+      const target = new Date(`${dateStr}T${timeStr}`);
+      if (isNaN(target.getTime())) return toast('Invalid date/time.');
+      if (target.getTime() <= now()) return toast('Choose a future date/time.');
+      const it = {
+        id: uid(),
+        type: 'alarm',
+        name: name.trim() || 'Untitled alarm',
+        mode,
+        vibeStyle,
+        targetTs: target.getTime(),
+        status: 'running',
+        remainingMs: target.getTime() - now(),
+        createdAt: now(),
+      };
+      state.items.unshift(it);
+      scheduleTick(it);
+      render();
+      save();
+    }
+
+    function toCard(item) {
+      const tpl = $('#itemTemplate');
+      const node = tpl.content.firstElementChild.cloneNode(true);
+      node.dataset.id = item.id;
+      $('.name', node).textContent = item.name || (item.type === 'timer' ? 'Timer' : 'Alarm');
+      $('.type', node).textContent = item.type === 'timer' ? 'TIMER' : 'ALARM';
+      const timeEl = $('.time', node);
+      const statusEl = $('.status', node);
+
+      let remain = getRemaining(item);
+      if (item.type === 'timer') {
+        statusEl.textContent = item.status.toUpperCase();
+      } else {
+        const dt = new Date(item.targetTs);
+        statusEl.textContent = `Fires at ${dt.toLocaleString()}`;
+      }
+      timeEl.textContent = fmt(remain);
+
+      const startBtn = $('.start', node);
+      const pauseBtn = $('.pause', node);
+      const resumeBtn = $('.resume', node);
+      const resetBtn = $('.reset', node);
+      const editBtn = $('.edit', node);
+      const delBtn = $('.delete', node);
+      const stopVibeBtn = $('.stopVibe', node);
+
+      function syncButtons() {
+        startBtn.style.display = (item.status === 'ready' || item.status === 'paused' || item.status === 'done') ? '' : 'none';
+        pauseBtn.style.display = (item.status === 'running') ? '' : 'none';
+        resumeBtn.style.display = (item.status === 'paused') ? '' : 'none';
+        stopVibeBtn.style.display = (item.status === 'vibrating') ? '' : 'none';
+      }
+      syncButtons();
+
+      
