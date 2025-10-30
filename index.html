@@ -1,6 +1,3 @@
-# Vibration-timer
-Testing vibration timer
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -436,6 +433,142 @@ Testing vibration timer
             stopVibration(id);
           } else {
             navigator.vibrate([200, 120, 200, 120]);
+          }
+        }, 700);
+        state.vibes.set(id, h);
+      }
+    }
+
+    function stopVibration(id) {
+      const h = state.vibes.get(id);
+      if (h) { clearInterval(h); state.vibes.delete(id); }
+      if ('vibrate' in navigator) navigator.vibrate(0);
+    }
+
+    function stopAllVibrations() {
+      [...state.vibes.keys()].forEach(stopVibration);
+      if ('vibrate' in navigator) navigator.vibrate(0);
+      // Also show buttons back to normal for any vibrating items
+      state.items.forEach(it => {
+        if (it.status === 'vibrating') {
+          it.status = 'done';
+        }
+      });
+      render();
+      save();
+    }
+
+    function getRemaining(item) {
+      if (item.type === 'timer') {
+        if (item.status === 'paused') return item.remainingMs;
+        const end = item.startTs + item.durationMs;
+        return end - now();
+      } else { // alarm
+        if (item.status === 'paused') return item.remainingMs;
+        return item.targetTs - now();
+      }
+    }
+
+    function tick(id) {
+      const item = state.items.find(x => x.id === id);
+      if (!item) { clearTick(id); return; }
+      const remain = getRemaining(item);
+      if (remain <= 0) {
+        clearTick(id);
+        item.status = (item.mode === 'vibrate') ? 'vibrating' : 'done';
+        if (item.mode === 'vibrate') startVibration(item.id, item.vibeStyle);
+        render();
+        save();
+        return;
+      }
+      const el = document.querySelector(`.item[data-id="${id}"] .time`);
+      if (el) el.textContent = fmt(remain);
+      const st = document.querySelector(`.item[data-id="${id}"] .status`);
+      if (st && item.type === 'alarm') {
+        const dt = new Date(item.targetTs);
+        st.textContent = `Fires at ${dt.toLocaleString()} (in ${fmt(remain)})`;
+      }
+    }
+
+    function addTimer(name, hours, minutes, seconds, mode, vibeStyle) {
+      const durationMs = (Number(hours)*3600 + Number(minutes)*60 + Number(seconds)) * 1000;
+      if (!durationMs || durationMs < 1000) return toast('Duration must be at least 1 second.');
+      const it = {
+        id: uid(),
+        type: 'timer',
+        name: name.trim() || 'Untitled timer',
+        mode, // vibrate | silent
+        vibeStyle, // continuous | pulse-10 | pulse-30
+        durationMs,
+        startTs: now(),
+        status: 'running', // running | paused | done | vibrating
+        remainingMs: durationMs,
+        createdAt: now(),
+      };
+      state.items.unshift(it);
+      scheduleTick(it);
+      render();
+      save();
+    }
+
+    function addAlarm(name, dateStr, timeStr, mode, vibeStyle) {
+      // Construct target timestamp from local date+time
+      if (!dateStr || !timeStr) return toast('Please pick both date and time.');
+      const target = new Date(`${dateStr}T${timeStr}`);
+      if (isNaN(target.getTime())) return toast('Invalid date/time.');
+      if (target.getTime() <= now()) return toast('Choose a future date/time.');
+      const it = {
+        id: uid(),
+        type: 'alarm',
+        name: name.trim() || 'Untitled alarm',
+        mode,
+        vibeStyle,
+        targetTs: target.getTime(),
+        status: 'running',
+        remainingMs: target.getTime() - now(),
+        createdAt: now(),
+      };
+      state.items.unshift(it);
+      scheduleTick(it);
+      render();
+      save();
+    }
+
+    function toCard(item) {
+      const tpl = $('#itemTemplate');
+      const node = tpl.content.firstElementChild.cloneNode(true);
+      node.dataset.id = item.id;
+      $('.name', node).textContent = item.name || (item.type === 'timer' ? 'Timer' : 'Alarm');
+      $('.type', node).textContent = item.type === 'timer' ? 'TIMER' : 'ALARM';
+      const timeEl = $('.time', node);
+      const statusEl = $('.status', node);
+
+      let remain = getRemaining(item);
+      if (item.type === 'timer') {
+        statusEl.textContent = item.status.toUpperCase();
+      } else {
+        const dt = new Date(item.targetTs);
+        statusEl.textContent = `Fires at ${dt.toLocaleString()}`;
+      }
+      timeEl.textContent = fmt(remain);
+
+      const startBtn = $('.start', node);
+      const pauseBtn = $('.pause', node);
+      const resumeBtn = $('.resume', node);
+      const resetBtn = $('.reset', node);
+      const editBtn = $('.edit', node);
+      const delBtn = $('.delete', node);
+      const stopVibeBtn = $('.stopVibe', node);
+
+      function syncButtons() {
+        startBtn.style.display = (item.status === 'ready' || item.status === 'paused' || item.status === 'done') ? '' : 'none';
+        pauseBtn.style.display = (item.status === 'running') ? '' : 'none';
+        resumeBtn.style.display = (item.status === 'paused') ? '' : 'none';
+        stopVibeBtn.style.display = (item.status === 'vibrating') ? '' : 'none';
+      }
+      syncButtons();
+
+                  navigator.vibrate([200, 120, 200, 120]);
           }
         }, 700);
         state.vibes.set(id, h);
