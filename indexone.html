@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VibeTimers — Multi Timers & Alarms (Vibration Only)</title>
+  <meta name="description" content="Multiple countdown timers and time-of-day alarms that vibrate your phone continuously until you stop them. Runs entirely in the browser. No sound." />
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --panel: #121822;
+      --muted: #9fb0c0;
+      --text: #e9f0f7;
+      --accent: #79d2ff;
+      --danger: #ff6b6b;
+      --success: #79ffa6;
+      --warn: #ffd56b;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0; background: linear-gradient(180deg, #0b0f14 0%, #0d1420 100%);
+      color: var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+    }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 20px; }
+    header {
+      display: flex; align-items: center; gap: 12px; margin: 8px 0 18px; flex-wrap: wrap;
+    }
+    header h1 { font-size: 1.5rem; margin: 0; letter-spacing: .5px; }
+    .chip { padding: 6px 10px; border-radius: 999px; background: #0f2638; color: var(--accent); font-weight: 600; font-size: .8rem; }
+    .bar { display: flex; gap: 10px; flex-wrap: wrap; }
+    .card {
+      background: var(--panel); border: 1px solid rgba(255,255,255,.06); border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    button, .btn {
+      border: 0; background: #173149; color: var(--text); padding: 10px 14px; border-radius: 12px;
+      font-weight: 600; cursor: pointer; transition: .2s transform ease, .2s opacity ease;
+    }
+    button:hover { transform: translateY(-1px); }
+    button:active { transform: translateY(0); opacity: .9; }
+    .primary { background: #1a4d72; }
+    .success { background: #165b3a; }
+    .danger { background: #5b1a1a; }
+    .warn { background: #5b4a1a; }
+    .ghost { background: rgba(255,255,255,.06); }
+    .muted { color: var(--muted); }
+
+    /* Form */
+    form#createForm { padding: 14px; display: grid; gap: 12px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    label { font-size: .9rem; color: var(--muted); display: block; margin-bottom: 6px; }
+    input[type="text"], input[type="time"], input[type="number"], textarea, select {
+      width: 100%; padding: 12px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,.08);
+      background: #0d1520; color: var(--text); font-size: 1rem;
+    }
+    input[type="checkbox"] { transform: scale(1.15); }
+    .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .radio-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .radio {
+      background: #0d1520; border: 1px solid rgba(255,255,255,.08); border-radius: 999px; padding: 6px 10px; cursor: pointer; user-select: none;
+    }
+    .radio input { margin-right: 6px; }
+
+    /* List */
+    #list { margin-top: 16px; display: grid; gap: 12px; }
+    .item { padding: 12px; display: grid; gap: 8px; }
+    .item-head { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+    .name { font-weight: 700; font-size: 1.05rem; word-break: break-word; }
+    .tag { font-size: .75rem; opacity: .8; padding: 3px 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.05); }
+    .time { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 1.3rem; letter-spacing: .5px; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+    /* Active Alert Bar */
+    #alertBar { position: fixed; left: 10px; right: 10px; bottom: 10px; z-index: 50; display: none; }
+    #alertBar .inner { padding: 12px; border-left: 6px solid var(--warn); display: flex; gap: 12px; align-items: center; }
+
+    /* Empty state */
+    .empty { text-align: center; color: var(--muted); padding: 26px; border: 1px dashed rgba(255,255,255,.12); border-radius: 16px; }
+
+    /* Footer */
+    footer { margin: 24px 0; opacity: .8; font-size: .9rem; }
+
+    @media (max-width: 720px) {
+      .grid, .grid-3 { grid-template-columns: 1fr; }
+      .actions { gap: 6px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>VibeTimers</h1>
+      <div class="chip">Vibration‑only · Offline · Multi‑timer</div>
+    </header>
+
+    <div class="card" style="padding:12px; margin-bottom:12px;">
+      <div class="toolbar">
+        <button id="enableVibration" class="primary">Enable vibration</button>
+        <button id="testVibe" class="ghost">Test buzz</button>
+        <label class="row" title="Keeps your screen awake while timers run (saves battery off)">
+          <input id="wakeLockToggle" type="checkbox" />
+          <span>Keep screen awake during timers</span>
+        </label>
+        <button id="stopAll" class="danger">Stop all vibrations</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <form id="createForm">
+        <div>
+          <label for="name">Name (long names welcome)</label>
+          <input id="name" type="text" placeholder="e.g., Laundry – 2nd rinse 45m" required />
+        </div>
+        <div class="radio-row" role="radiogroup" aria-label="Entry type">
+          <label class="radio"><input type="radio" name="type" value="countdown" checked /> Countdown timer</label>
+          <label class="radio"><input type="radio" name="type" value="alarm" /> Time‑of‑day alarm</label>
+        </div>
+        <div id="countdownFields" class="grid">
+          <div><label>Hours</label><input id="hh" type="number" min="0" max="99" value="0" inputmode="numeric" /></div>
+          <div><label>Minutes</label><input id="mm" type="number" min="0" max="59" value="5" inputmode="numeric" /></div>
+          <div><label>Seconds</label><input id="ss" type="number" min="0" max="59" value="0" inputmode="numeric" /></div>
+        </div>
+        <div id="alarmFields" class="grid" style="display:none;">
+          <div>
+            <label for="alarmTime">Alarm time (24h)</label>
+            <input id="alarmTime" type="time" />
+          </div>
+          <div class="row" style="align-items:center; margin-top: 6px;">
+            <label class="row"><input id="repeatDaily" type="checkbox" /> Repeat daily</label>
+          </div>
+        </div>
+        <div class="grid">
+          <div>
+            <label for="pattern">Vibration pattern</label>
+            <select id="pattern">
+              <option value="continuous">Continuous pulses (default)</option>
+              <option value="short">Short pulses</option>
+              <option value="long">Long pulses</option>
+              <option value="custom">Custom pattern…</option>
+            </select>
+          </div>
+          <div id="customWrap" style="display:none;">
+            <label for="customPattern">Custom pattern (ms, comma‑separated: on,off,on,off,…)</label>
+            <input id="customPattern" type="text" placeholder="e.g., 1000,200,1000,400" />
+          </div>
+        </div>
+        <div class="row">
+          <label class="row"><input id="loopVibration" type="checkbox" checked /> Non‑stop vibration until I stop</label>
+        </div>
+        <div class="row">
+          <button type="submit" class="success">Add</button>
+          <span class="muted">Everything saves automatically to this device.</span>
+        </div>
+      </form>
+    </div>
+
+    <div id="list"></div>
+
+    <div id="alertBar">
+      <div class="card inner">
+        <div style="flex:1;">
+          <div style="font-weight:700;">Buzzing…</div>
+          <div class="muted">Vibrating until you stop it. Keep the tab in front for best results.</div>
+        </div>
+        <button id="stopAlert" class="danger">Stop vibration</button>
+      </div>
+    </div>
+
+    <footer class="muted">
+      Tip: Android Chrome supports the Vibration API. For non‑stop buzz, keep this tab open and the screen awake. Background limitations may stop vibration on some devices.
+    </footer>
+  </div>
+
+  <script>
+  (() => {
+    const $ = (sel, el=document) => el.querySelector(sel);
+    const $$ = (sel, el=document) => Array.from(el.querySelectorAll(sel));
+
+    const supportsVibration = () => 'vibrate' in navigator;
+    let vibrationEnabled = false; // set true after a user gesture
+
+    // Wake Lock handling (best effort)
+    let wakeLock = null; let wakeLockWanted = false;
+    async function requestWakeLock() {
+      if (!('wakeLock' in navigator)) return;
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+      } catch (e) {
+        console.warn('WakeLock error:', e);
+      }
+    }
+    function releaseWakeLock() { if (wakeLock) { wakeLock.release(); wakeLock = null; } }
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && wakeLockWanted) requestWakeLock();
+    });
+
+    // Vibration manager — loops patterns until stopped
+    const Vibe = {
+      _loopTimer: null,
+      _loopInterval: 0,
+      _active: false,
+      start(pattern, loop=true) {
+        if (!supportsVibration() || !vibrationEnabled) return;
+        const patt = Array.isArray(pattern) ? pattern : [pattern];
+        const total = patt.reduce((a,b)=>a+Math.max(0, Number(b)||0), 0);
+        // Clamp to avoid extremely long single calls that some browsers ignore
+        const capped = patt.map(v => Math.min(10000, v));
+        navigator.vibrate(capped);
+        this._active = true;
+        if (loop) {
+          clearInterval(this._loopTimer);
+          this._loopInterval = Math.max(250, total || 1000);
+          this._loopTimer = setInterval(() => {
+            if (!this._active) return;
+            navigator.vibrate(capped);
+          }, this._loopInterval);
+        }
+        $('#alertBar').style.display = 'block';
+      },
+      stop() {
+        this._active = false;
+        clearInterval(this._loopTimer);
+        navigator.vibrate(0);
+        $('#alertBar').style.display = 'none';
+      },
+      active() { return this._active; }
+    };
+
+    // Storage
+    const storeKey = 'vibetimers.v1';
+    const load = () => { try { return JSON.parse(localStorage.getItem(storeKey) || '[]'); } catch { return []; } };
+    const save = (items) => localStorage.setItem(storeKey, JSON.stringify(items));
+
+    // Utilities
+    const pad = n => String(Math.max(0, Math.floor(n))).padStart(2, '0');
+    function fmt(ms) {
+      const s = Math.max(0, Math.floor(ms/1000));
+      const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+      return `${pad(h)}:${pad(m)}:${pad(sec)}`;
+    }
+    const now = () => Date.now();
+
+    function nextAlarmTime(timeStr) {
+      // timeStr: "HH:MM" (24h)
+      const [hh, mm] = timeStr.split(':').map(x=>parseInt(x||'0',10));
+      const d = new Date();
+      d.setSeconds(0,0);
+      d.setHours(hh, mm, 0, 0);
+      if (d.getTime() <= now()) d.setDate(d.getDate()+1);
+      return d.getTime();
+    }
+
+    function defaultPattern(kind) {
+      switch (kind) {
+        case 'short': return [200, 100];
+        case 'long': return [1000, 400];
+        case 'continuous': return [500, 200];
+        default: return [500, 200];
+      }
+    }
+
+    // Model
+    let items = load();
+
+    function createItem({ name, type, durationMs, alarmTime, repeatDaily, pattern, loop }) {
+      const id = crypto.randomUUID();
+      const base = {
+        id, name, type, createdAt: now(),
+        vibrate: { pattern, loop },
+        repeatDaily: !!repeatDaily,
+        state: {
+          running: false,
+          paused: false,
+          // For countdown
+          durationMs: durationMs || 0,
+          remainingMs: durationMs || 0,
+          // For alarm
+          alarmTime: alarmTime || null, // "HH:MM"
+          nextAt: null,
+          lastStartAt: null
+        }
+      };
+      if (type === 'alarm' && alarmTime) base.state.nextAt = nextAlarmTime(alarmTime);
+      items.push(base); save(items); render();
+    }
+
+    function removeItem(id) { items = items.filter(x=>x.id!==id); save(items); render(); }
+
+    function toggleStart(id) {
+      const it = items.find(x=>x.id===id); if (!it) return;
+      const s = it.state;
+      if (s.running) {
+        // Pause
+        if (it.type === 'countdown') s.remainingMs = Math.max(0, (s.lastStartAt + s.durationMs) - now());
+        s.running = false; s.paused = true; save(items); render(); return;
+      } else {
+        // Start/resume
+        if (it.type === 'countdown') {
+          if (!s.paused) s.remainingMs = s.durationMs; // first start
+          s.durationMs = s.remainingMs; // lock in remaining to a full interval
+          s.lastStartAt = now();
+        } else {
+          if (!s.nextAt && s.alarmTime) s.nextAt = nextAlarmTime(s.alarmTime);
+        }
+        s.running = true; s.paused = false; save(items); render();
+      }
+    }
+
+    function resetItem(id) {
+      const it = items.find(x=>x.id===id); if (!it) return;
+      const s = it.state;
+      if (it.type === 'countdown') {
+        s.running = false; s.paused = false; s.remainingMs = s.durationMs = s.durationMs || 0; s.lastStartAt = null;
+      } else {
+        s.running = false; s.paused = false; s.nextAt = it.state.alarmTime ? nextAlarmTime(it.state.alarmTime) : null;
+      }
+      save(items); render();
+    }
+
+    function acknowledgeItem(id) {
+      // Stop vibration and, for alarms, schedule next if repeat
+      Vibe.stop();
+      const it = items.find(x=>x.id===id); if (!it) return;
+      const s = it.state;
+      if (it.type === 'alarm') {
+        if (it.repeatDaily && s.alarmTime) {
+          s.nextAt = nextAlarmTime(s.alarmTime);
+          s.running = true; s.paused = false;
+        } else {
+          s.running = false; s.paused = false;
+        }
+      } else { // countdown
+        s.running = false; s.paused = false;
+      }
+      save(items); render();
+    }
+
+    function parseCustomPattern(str) {
+      const arr = (str||'').split(/[,\s]+/).map(x=>parseInt(x,10)).filter(n=>!isNaN(n) && n>=0);
+      if (!arr.length) return defaultPattern('continuous');
+      return arr.slice(0, 32); // safety cap
+    }
+
+    // Engine loop
+    setInterval(() => {
+      let dirty = false;
+      items.forEach(it => {
+        const s = it.state;
+        if (!s.running) return;
+        if (it.type === 'countdown') {
+          const remaining = Math.max(0, (s.lastStartAt + s.durationMs) - now());
+          if (remaining <= 0) {
+            s.running = false; s.paused = false; dirty = true;
+            trigger(it);
+          }
+        } else { // alarm
+          if (s.nextAt && now() >= s.nextAt) {
+            // Fire
+            if (it.repeatDaily && s.alarmTime) {
+              s.nextAt = nextAlarmTime(s.alarmTime); // schedule next, but buzzing continues until stop
+              dirty = true;
+            } else {
+              s.running = false; s.paused = false; s.nextAt = null; dirty = true;
+            }
+            trigger(it);
+          }
+        }
+      });
+      if (dirty) save(items);
+      tickUI();
+    }, 250);
+
+    function trigger(it) {
+      const pattern = it.vibrate.pattern;
+      const loop = it.vibrate.loop;
+      if (!supportsVibration()) {
+        alert('Vibration not supported in this browser.');
+        return;
+      }
+      if (!vibrationEnabled) {
+        alert('Tap "Enable vibration" first to allow buzzing.');
+        return;
+      }
+      if (wakeLockWanted) requestWakeLock();
+      Vibe.start(pattern, loop);
+      highlight(it.id);
+    }
+
+    function highlight(id) {
+      const el = document.getElementById('item-'+id);
+      if (!el) return;
+      el.style.outline = '2px solid var(--warn)';
+      setTimeout(()=>{ el.style.outline = 'none'; }, 1500);
+    }
+
+    // UI Rendering
+    function render() {
+      const list = $('#list');
+      list.innerHTML = '';
+      if (!items.length) {
+        list.innerHTML = `<div class="empty">No timers/alarms yet. Add one above. They will be saved here.</div>`;
+        return;
+      }
+      items.forEach(it => {
+        const s = it.state;
+        const wrap = document.createElement('div');
+        wrap.className = 'card item';
+        wrap.id = 'item-'+it.id;
+
+        // Head
+        const head = document.createElement('div'); head.className = 'item-head';
+        const left = document.createElement('div');
+        left.innerHTML = `<div class="name">${escapeHtml(it.name)}</div>`+
+          `<div class="row" style="gap:6px; margin-top:4px;">
+             <span class="tag">${it.type==='countdown'?'TIMER':'ALARM'}</span>
+             ${it.repeatDaily?'<span class="tag">DAILY</span>':''}
+             ${it.vibrate.loop?'<span class="tag">NON‑STOP</span>':'<span class="tag">ONE‑SHOT</span>'}
+           </div>`;
+        const right = document.createElement('div');
+        right.innerHTML = `<div class="time" data-time></div>`;
+        head.appendChild(left); head.appendChild(right);
+
+        // Actions
+        const actions = document.createElement('div'); actions.className = 'actions';
+        const startBtn = btn(s.running? 'Pause' : 'Start', s.running? '' : 'primary');
+        startBtn.addEventListener('click', () => toggleStart(it.id));
+        const ackBtn = btn('Stop', 'danger');
+        ackBtn.addEventListener('click', () => acknowledgeItem(it.id));
+        const resetBtn = btn('Reset', 'ghost');
+        resetBtn.addEventListener('click', () => resetItem(it.id));
+        const delBtn = btn('Delete', 'ghost');
+        delBtn.addEventListener('click', () => { if (confirm('Delete this item?')) removeItem(it.id); });
+        actions.append(startBtn, ackBtn, resetBtn, delBtn);
+
+        wrap.append(head, actions);
+        list.appendChild(wrap);
+      });
+      tickUI();
+    }
+
+    function tickUI() {
+      $$('#list .card.item').forEach(wrap => {
+        const id = wrap.id.replace('item-','');
+        const it = items.find(x=>x.id===id); if (!it) return;
+        const s = it.state;
+        const timeEl = $('[data-time]', wrap);
+        if (it.type === 'countdown') {
+          let remaining = s.running ? Math.max(0, (s.lastStartAt + s.durationMs) - now()) : s.remainingMs;
+          timeEl.textContent = fmt(remaining);
+        } else {
+          if (!s.nextAt) {
+            timeEl.textContent = it.state.alarmTime ? '—' : 'Set time';
+          } else {
+            timeEl.textContent = 'next ' + new Date(s.nextAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+          }
+        }
+      });
+    }
+
+    function btn(label, cls='') {
+      const b = document.createElement('button');
+      b.textContent = label; if (cls) b.classList.add(cls);
+      return b;
+    }
+
+    function escapeHtml(str='') {
+      return str.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+    }
+
+    // Form wiring
+    const f = $('#createForm');
+    const typeRadios = $$('input[name="type"]', f);
+    const countdownFields = $('#countdownFields');
+    const alarmFields = $('#alarmFields');
+    typeRadios.forEach(r => r.addEventListener('change', () => {
+      const val = $$('input[name="type"]', f).find(x=>x.checked).value;
+      countdownFields.style.display = val==='countdown' ? '' : 'none';
+      alarmFields.style.display = val==='alarm' ? '' : 'none';
+    }));
+
+    const patternSel = $('#pattern');
+    const customWrap = $('#customWrap');
+    patternSel.addEventListener('change', () => {
+      customWrap.style.display = patternSel.value==='custom' ? '' : 'none';
+    });
+
+    f.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = $('#name').value.trim() || 'U
